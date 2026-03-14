@@ -15,24 +15,67 @@
     ></script>
 
     <script type="text/javascript">
+      const app = {
+        transcriptionURL: '',
+        public_id: '',
+        waitForTranscription: async () => {
+          
+          const url = `https://res.cloudinary.com/${config.cloudName}/raw/upload/v${app.version}/${app.public_id}.transcript`;
+          
+          for (let attempt = 0; attempt < 30; attempt++) {
+            
+            try {
+              const response = await fetch(url);
+              
+              if (response.ok) {
+                const transcription = await response.text();
+                console.log('Transcrição pronta:', transcription);
+                app.transcriptionURL = url;
+                app.getTranscription();
+                return;
+              
+              } else {
+                console.log(`Tentativa ${attempt + 1} falhou: ${response.status}`);
+              }
+            } catch (error) {
+              console.log(`Tentativa ${attempt + 1} falhou:`, error.message);
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+        },
+        getTranscription: async () => {
+          const response = await fetch(app.transcriptionURL)
+          return response.text()
+        },
+        getViralMoment: async () => {
+          const transcription = await app.getTranscription();
+        }
+
+      }
+
       const config = {
         cloudName: "dlujnvuhr",
         uploadPreset: "upload_nlw",
       };
 
-      var myWidget = cloudinary.createUploadWidget(config, (error, result) => {
-        if (!error && result && result.event === "success") {
-          console.log("Done! Here is the image info: ", result.info);
+      const myWidget = cloudinary.createUploadWidget(
+        config,
+        async (error, result) => {
+          console.log('error: ', error);
+          if (!error && result && result.event === "success") {
+            console.log("Done! Here is the image info: ", result.info);
+            app.public_id = result.info.public_id;
+            
+            const isReady = await app.waitForTranscription();
+          }
         }
-      });
-
-      document.getElementById("upload_widget").addEventListener(
-        "click",
-        function () {
-          myWidget.open();
-        },
-        false,
       );
+
+      document.getElementById("upload_widget").addEventListener("click", () => {
+        myWidget.open();
+      }, false);
     </script>
+
   </body>
-</html>
+  </html>
